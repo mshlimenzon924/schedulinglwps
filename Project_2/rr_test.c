@@ -1,5 +1,6 @@
 #include <assert.h>
 #include "rr.h"  // Include the header file where your functions are declared
+// to run: gcc -g rr_test.c rr.c rr.h -o rr_test 
 
 struct scheduler test_roundrobin = {NULL, NULL, rr_admit, rr_remove, rr_next, rr_qlen};
 

@@ -1,7 +1,119 @@
 #include "/Asgn2/include/lwp.h"
 
-// Creating new Lightweight Process, Adds to Scheduler, But does not run it 
+scheduler current_scheduler;
+
+
+// global variable scheduler 
+// init and shutdown functions inside the scheduler are done in lwp.h
+
+// keep track of what's terminated
+// what's waiting 
+
+// Creating new lightweight process (thread), adds to Scheduler, But does not run it 
 tid_t lwp_create(lwmpfun function, void *argument) {
+
+    // allocate stack
+    long size = sysconf(_SC_PAGE_SIZE);
+    void * stack = mmap(NULL, size, PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANONYMOUS | MAP_STACK, -1, 0);
+    if (stack == MAP_FAILED) {
+        fprintf(stderr, "mmap issue\n");
+        return NO_THREAD;
+    }
+
+    // allocate context
+    
+    Initialize the stack frame and context so that when that context is loaded in swap_rfiles(), it will properly return to the lwp’s function with the stack and registers arranged as it will expect. This involves making the stack look as if the thread called swap_rfiles() and was suspended.
+How to do this? Figure out where you want to end up, then work backwards through the endgame of swap_rfiles() to figure out what you need it to look like when it’s loaded.
+You know that the end of swap_rfiles() (and every function) is: leave
+ret
+And that leave really means:
+movq %rbp, %rsp ; copy base pointer to stack pointer popq %rbp ; pop the stack into the base pointer
+and ret means pop the instruction pointer, so the whole thing becomes: movq %rbp, %rsp ; copy base pointer to stack pointer
+popq %rbp ; pop the stack into the base pointer
+popq %rip ; pop the stack into the instruction pointer
+Consider that what you’re doing, really, is creating a stack frame for swap_rfiles() to tear down—in lieu of the one it created on the way in, on a different stack—and creating the caller’s half of lwpfun’s stack frame since nobody actually calls it. (c) admit() the new thread to the scheduler.
+(c) admit() the new thread to the scheduler.
+
+    // allocates context
+    thread *thread_new = (thread)malloc(sizeof(thread));
+    context thread_info = (context)malloc(sizeof(context));
+    thread_new = &thread_info   //set up thread_new pointer
+
+    // Fills up context correctly (TO STILL BE DONE)
+    thread_info.tid = 0;
+    thread_info.stack = 0;
+    thread_info.stacksize = 0;
+    thread_info.state = 0;
+    thread_info.status = NULL;
+    thread_info.lib_one = NULL;
+    thread_info.lib_two = NULL;
+    thread_info.sched_one = NULL;
+    thread_info.sched_two = NULL;
+    thread_info.exited = NULL;
+
+
+
+    // Fills up stack correctly 
+
+
+    current_scheduler->admit(thread_new);
+
+
+    // intiliaze stack frame and context 
+
+    // make thread and thread needs to filled up = process id, what code they eventually will run, crazy rfile thing 
+
+    typedef struct threadinfo_st = ;  
+    // 1. malloc context of thread (arrow to dereference pointer . for rfile cause it is struct not pointer)
+    // new_thread->state.rsp;
+    // pg.4 for mmap 
+
+    // pg.8/ 9 for our stack
+    // draw this out and really know where you need to go! 
+    // know where to slide in return address
+    // KEY: Stack be aligned = what that means; needs to be divisible by 16; can get there because unsigned longs
+    // count how many bytes to get 16 due to the unsigned longs in our stack - not divisible by 16
+    // confirm that stack is perfectly aligned 
+
+    // returns what you want and not what's there 
+    // it's gonna have its own our stack we are making stack - don't use the stack you have, use my stack 
+    // manipulate our stack to return somewhere else 
+    // Remember, the ret instruction, while called “return”, really means “pop the top of the stack into the program counter.”
+
+    // 2. malloc stack  == mmap();
+    // gonna put the address in LWP rap/ address of function you are placing, return address different can trick it  
+
+    // 3. fill in members of context where stack points, process id, all the other variables lib1, lib2
+    // lib_one = keep track of what threads are terminated, lib_two = design_choice 
+    //lib_one and lib_two are reserved for the use of the library internally, for any purpose or no purpose at all. 
+    // lib_one and lib_two 
+    // (Many people find these useful to maintain a global linked list of all threads for implementing tid2thread() 
+    // or perhaps for keeping track of threads that are waiting.)
+    // intiliaze stack and prepare it 
+    // intialize state r file rfile ==> initiliaze stuff in rfile 
+    // thread ready to go 
+
+    // set up stack (hardest part)
+    // preparing stack - trick 
+    // trick c to return to address you want 
+
+    // admit to scheduler 
+
+    // make global list of threads ALSO
+    // return process ID or NO_THREAD if thread cannot be created 
+
+
+
+
+
+
+
+    // allocate thread to make space for context (use context struct)
+    // create some structure with members you think would be part of the thread = malloc 
+    // process id, stack pointer currently, program counter can return to where the code is running, 
+
+
+
     // parameter function = has code to be executed by thread 
     // when function is called, the code will be executed until it either calls lwp_exit()
     // or function terminates with termination status 
@@ -13,6 +125,20 @@ tid_t lwp_create(lwmpfun function, void *argument) {
     // DO NOT RUN THIS PROCESS! up to scheduler to do that 
 
     // returns LWP id of new thread or NO_THREAD if thread cannot be created 
+
+
+    (a) Allocate a stack and a context for each LWP.
+(b) Initialize the stack frame and context so that when that context is loaded in swap_rfiles(), it will properly return to the lwp’s function with the stack and registers arranged as it will expect. This involves making the stack look as if the thread called swap_rfiles() and was suspended.
+How to do this? Figure out where you want to end up, then work backwards through the endgame of swap_rfiles() to figure out what you need it to look like when it’s loaded.
+You know that the end of swap_rfiles() (and every function) is: leave
+ret
+And that leave really means:
+movq %rbp, %rsp ; copy base pointer to stack pointer popq %rbp ; pop the stack into the base pointer
+and ret means pop the instruction pointer, so the whole thing becomes: movq %rbp, %rsp ; copy base pointer to stack pointer
+popq %rbp ; pop the stack into the base pointer
+popq %rip ; pop the stack into the instruction pointer
+Consider that what you’re doing, really, is creating a stack frame for swap_rfiles() to tear down—in lieu of the one it created on the way in, on a different stack—and creating the caller’s half of lwpfun’s stack frame since nobody actually calls it. (c) admit() the new thread to the scheduler.
+(c) admit() the new thread to the scheduler.
 }
 
 
@@ -82,14 +208,21 @@ thread tid2thread(tid_t tid){
 
 // LWP package uses scheduler to choose next process to run
 void lwp_set_scheduler(scheduler sched) {
-    // given scheduler transfer all threads from old scheduler to new one 
-    // using the next() order
-    // if scheduler is NULL, return back to round-robin scheduling
+    if (!scheduler) {   // if scheduler is NULL, return back to round-robin scheduling
+        // set up round robin
+        // struct scheduler roundrobin = {NULL, NULL, rr_admit, rr_remove, rr_next, rr_qlen};
+        current_scheduler = &roundrobin;
+        roundrobin.init = rr_init();  // defined in lwp.h
+        roundrobin.shutdown = rr_shutdown();
+    } else {    // if not null, then use new scheduler 
+        current_scheduler = sched;
+    }
 }
 
 // Helps us get current scheduler 
+// return pointer to current scheduler
 scheduler lwp_get_scheduler(void){
-    // return pointer to current scheduler
+    return scheduler;
 }
 
 // current process we are running 

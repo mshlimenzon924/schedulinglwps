@@ -11,8 +11,6 @@
 #include <sys/time.h>
 #include <unistd.h>
 
-// add our linked list struct here
-//typedef struct Node*;
 typedef struct Node {
     thread current_thread;
     struct Node *next;
@@ -35,6 +33,6 @@ struct Node* rr_dequeue();
 
 struct Queue *queue;
 extern struct scheduler roundrobin;
-extern scheduler round_r;
+extern scheduler current_scheduler;
 
 # endif
