@@ -1,6 +1,10 @@
 #ifndef LWPH
 #define LWPH
 #include <sys/types.h>
+#include <sys/time.h>
+#include <sys/resource.h>
+#include <math.h>
+#include <stdio.h>
 
 #ifndef TRUE
 #define TRUE 1
@@ -79,6 +83,7 @@ extern thread tid2thread(tid_t tid);
 
 /* for lwp_wait */
 #define TERMOFFSET        8
+#define DEFAULT_STACK_SIZE (8 * 1024 * 1024)
 #define MKTERMSTAT(a,b)   ( (a)<<TERMOFFSET | ((b) & ((1<<TERMOFFSET)-1)) )
 #define LWP_TERM          1
 #define LWP_LIVE          0
