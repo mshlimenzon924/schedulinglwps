@@ -1,18 +1,19 @@
 #include "/Asgn2/include/lwp.h"
 
-scheduler current_scheduler;
-
-// global variable scheduler 
-// init and shutdown functions inside the scheduler are done in lwp.h
-// keep track of what's terminated
-// what's waiting 
-
+struct scheduler roundrobin = {NULL, NULL, rr_admit, rr_remove, rr_next, rr_qlen};
+list_of_all_threads = NULL;         // list of all threads at the beginning of program (linked list)
+list_of_terminated_threads = NULL;
 
 // Creating new lightweight process (thread), adds to Scheduler, But does not run it 
 tid_t lwp_create(lwmpfun function, void *argument) {
+    /// ALLOCATE CONTEXT
+    thread new_thread = (thread)malloc(sizeof(context));
+    if(!new_thread) {   // malloc issue
+        printf(stderr, "thread malloc issue\n");
+        return NO_THREAD;
+    }
 
-    // allocate stack
-
+    // ALLOCATE STACK
     // getting page_size
     long page_size = sysconf(_SC_PAGE_SIZE);
     if (page_size == -1) {
@@ -23,114 +24,82 @@ tid_t lwp_create(lwmpfun function, void *argument) {
     // getting stack size
     struct rlimit rlim;
     if (getrlimit(RLIMIT_STACK, &rlim) == -1) {
-        printf(stderr, "getrlimit issue\n");
+        fprintf(stderr, "getrlimit issue\n");
         return NO_THREAD;
     } 
+    // calculating stack_size
     long stack_size;
     if (rlim.rlim_cur == RLIM_INFINITY) || (rlim.rlim_cur > 0) {
         stack_size = DEFAULT_STACK_SIZE;
     } else {
         stack_size = rlim.rlim_cur;
     }
-    // rounding up to nearest multiple of page size Round up to the nearest multiple of page size
-    long stack_size = (long)(ceil((double)stack_size / page_size) * page_size);
+    stack_size = ceil((long)stack_size / page_size) * page_size; // rounding up 
 
-
-    stack_size = 16*100;  
-
-    void * stack = mmap(NULL, stack_size, PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANONYMOUS | MAP_STACK, -1, 0);
+    // points to bottom aka starting point for stack operations; it grows upward
+    unsigned long *stack = (unsigned long *)mmap(NULL, stack_size, PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANONYMOUS | MAP_STACK, -1, 0);
     if (stack == MAP_FAILED) {
         fprintf(stderr, "mmap issue\n");
         return NO_THREAD;
     }
 
-    // allocate space for registers 
-     // mmap + size = jsut put return at the top of stack
+    new_thread->tid = PID_START++;  // tid setup
+    new_thread->status =  LWP_LIVE;  // thread is live
+    new_thread->stacksize = (size_t)stack_size;
+    newthread->state.fxsave = FPU_INIT;
 
-    /// allocate context
-    thread *thread_new = (thread)malloc(sizeof(thread));
-    context thread_info = (context)malloc(sizeof(context));
-    thread_new = &thread_info   //set up thread_new pointer
-    thread_info.
+    // set up thread
+    new_thread->state.rdi = (unsigned long)&argument; 
+    new_thread->state.rbp = (unsigned long)&stack;  // bottom of stack 
+    
+    // Stack Setup
+        // lower address 
+    // local variables 
+    // function arguments
+    // caller-saved registers 
+    // old rbp (current stack pointer)
+    // instructions where? function we want to call (function)
+    // return adress/ exit function (lwp_exit)
+        // higher address
 
+    // should i push args?
+    stack[0] = (unsigned long)&lwp_exit;         // address where to go back 
+    stack[-1] = (unsigned long)&function;       // return address = main function
+    stack[-2] = (unsigned long)new_thread->state.rbp;       
+    // should i push registers?
 
-    // manual go back call at top (main call) - exit call 
-    // index with functions - 16 
-    // stack - set top as exit of stack
-    // actual registers - atomic switch 
-    // empties 
-    // Fills up stack correctly 
+    new_thread->state.rsp = (unsigned long)*(stack - 2); //pointing to top of stack
+    new_thread->stack = (unsigned long *)stack;   // is this correct?
 
-    // admit thread to scheduler
-    current_scheduler->admit(thread_new);
+    // intialize threads to NULL 
+    new_thread->lib_one = NULL;
+    new_thread->lib_two = NULL; 
+    new_thread->sched_one = NULL;
+    new_thread->sched_two = NULL;
+    new_thread->exited = NULL;
 
+    current_scheduler->admit(new_lwp); // scheduler lwp to be run
 
-    // 1. malloc context of thread (arrow to dereference pointer . for rfile cause it is struct not pointer)
-    // new_thread->state.rsp;
-    // pg.4 for mmap 
+    // Add thread to list of threads 
+    if(list_of_all_threads){    // if already has at least one thread
+        thread temp = new_thread;  
+        new_thread.lib_one = list_of_all_threads;   
+        list_of_all_threads = temp;  // then just add it to the front
+    } else {
+        list_of_all_threads = new_thread;
+    }
 
-    // pg.8/ 9 for our stack
-    // draw this out and really know where you need to go! 
-    // know where to slide in return address
-    // KEY: Stack be aligned = what that means; needs to be divisible by 16; can get there because unsigned longs
-    // count how many bytes to get 16 due to the unsigned longs in our stack - not divisible by 16
-    // confirm that stack is perfectly aligned 
-
-    // returns what you want and not what's there 
-    // it's gonna have its own our stack we are making stack - don't use the stack you have, use my stack 
-    // manipulate our stack to return somewhere else 
-    // Remember, the ret instruction, while called “return”, really means “pop the top of the stack into the program counter.”
-
-    // 2. malloc stack  == mmap();
-    // gonna put the address in LWP rap/ address of function you are placing, return address different can trick it  
-
-    // 3. fill in members of context where stack points, process id, all the other variables lib1, lib2
-    // lib_one = keep track of what threads are terminated, lib_two = design_choice 
-    //lib_one and lib_two are reserved for the use of the library internally, for any purpose or no purpose at all. 
-    // lib_one and lib_two 
-    // (Many people find these useful to maintain a global linked list of all threads for implementing tid2thread() 
-    // or perhaps for keeping track of threads that are waiting.)
-    // intiliaze stack and prepare it 
-    // intialize state r file rfile ==> initiliaze stuff in rfile 
-    // thread ready to go 
-
-    // set up stack (hardest part)
-    // preparing stack - trick 
-    // trick c to return to address you want 
-
-    // admit to scheduler 
-
-    // make global list of threads ALSO
-    // return process ID or NO_THREAD if thread cannot be created 
-
-
-
-
-
-
-
-    // allocate thread to make space for context (use context struct)
-    // create some structure with members you think would be part of the thread = malloc 
-    // process id, stack pointer currently, program counter can return to where the code is running, 
-
-
-
-    // parameter function = has code to be executed by thread 
-    // when function is called, the code will be executed until it either calls lwp_exit()
-    // or function terminates with termination status 
-    // thread function takes single arg (pointer to anything) aka parameter argument 
-
-    // Creates new thread 
-    // Admits it to the current scheduler 
-    // Creates resources for it: context and stack (intilaize both and connect with scheduler)
-    // DO NOT RUN THIS PROCESS! up to scheduler to do that 
-
-    // returns LWP id of new thread or NO_THREAD if thread cannot be created 
-
-    // you have pointer to base of mmap take that and add size of stack to jump to top put exit to main function
-    // stack will populate and then return will be set at top 
+    return new_thread->tid;
 }
 
+static void lwp_wrap(lwpfun fun, void *arg){
+    // Call given lwpfunciton with given argument
+    //calls lwp_exit with its return value 
+
+    int rval;
+    rval = fun(arg);
+    lwp_exit(rval);
+}
 
 // Starts LWP system
 void lwp_start(void){
@@ -138,19 +107,21 @@ void lwp_start(void){
     // allocates context for main thread and admits to scheduler 
     // yields control to whichever thread scheduler indicates 
 
-    // how to get data from calling thread in order to convert to LWP 
-    // take struct declare object and give it threadid and status and admit to scheduler 
-    // 
-    // create thread give very basic data 
-    // give it thread id and admit to scheduler and then back on main process 
-    // context of calling thread?
-    // 
-
-    // to do
-    // give thread id
-    // admit it (stacks already created etc context swap happens in lwp yield )
-
+    // create thread give very basic data (tid, alive status)
+    // admit to scheduler (stacks already created etc context swap happens in lwp yield)
     // NOTE: no need to make stack for this thread, it already has one! 
+
+    // create new thread with threadID and alive status 
+    thread new_lwp = (thread)malloc(sizeof(struct threadinfo_st));
+    new_lwp = &new_lwp;
+    new_lwp->tid = 1;
+    new_lwp->status = LWP_LIVE;
+
+    // schedule it 
+    current_scheduler->admit(new_lwp);
+
+    // yield
+    lwp_yield();
 }
 
 // Yields control to another thread 
@@ -160,34 +131,81 @@ void lwp_yield(void){
     // Saving current thread's context, restoring next thread's context
 
     // If no next thread, end entire program = call exit with termination status of calling thread
+    // scheduler determines what comes next once scheduler is written yield is just call to scheduler
+    // swap out contexts
+    // determine thread to yield too scheduler->next()
+    // lwp_exit() terminates the calling thread and switches to another, if any.
 
-    //scheduler determines what comes next once scheduler is written yield is just call to scheduler just ask next 
-    // swap out contexts 4-5 lines 
+    // thread new_lwp = (thread)malloc(sizeof(struct threadinfo_st));
+    // new_lwp = &new_lwp;
+    // new_lwp->tid = 2;
+    // new_lwp->status = LWP_LIVE;
+    // current_lwp 
 
-    //
-    //determine thread to yield too scheduler->next()
-    //swap out context
+    /* Test Code */
+    // get next thread to be scheduled
+    thread next_scheduled = scheduler->next();
 
+    // if no next thread end program with call to lwp_exit(int status);
+    if(!next_scheduled)
+        lwp_exit(current_lwp->status);
+
+    // swap out current threads context with next threads context
+    // loads in new context, saves old context 
+    swap_rfiles(current_lwp->rfile, next_scheduled->rfile) // takes in 2 arg stores current reg values, loads to register 
+    
+    // mark next_scheduled as the current lwp 
+    current_lwp = next_scheduled;
 }
 
 // Terminates current thread and yields to whichever thread the scheduler choose
+ // termination status becomes low 8 bits of passed integer (exitval)
 void lwp_exit(int exitval) {
-    // terminates calling thread!! 
-    // termination status becomes low 8 bits of passed integer (exitval)
-    
+    // terminates current_thread
+    if(current_thread){
+        current_scheduler->remove(current_thread);
+        thread temp_wait = list_of_waiting_threads;
+        if(temp_wait){ //temp_wait exists then let's throw it in oldest wait node
+            temp->exited = current_thread;
+            list_of_waiting_threads = temp->lib_one;    // dequeue oldest waiting node
+            current_scheduler->admit(temp);     // add back to scheduler
+        }
+        else { // if no waiting nodes
+            // great let's just add to the list of terminated nodes that need to be cleaned up
+            if(list_of_terminated_threads){
+            // add terminated thread to the BACK of the linked list 
+                thread temp = list_of_terminated_threads;
+                thread next = temp->exited;
+                while(next) { // while there exists another thread in linked list
+                    temp = next;    // move temp over 
+                    next = next->exited;
+                }
+                // next is now NULL;
+                temp->exited = current_thread; //sent current thread to exited!
+            } else {
+                list_of_terminated_threads = current_thread;
+            }
+        }
+    }
 
     // don't deallocate or anything - the next thread will deallocate it for us in lwp_wait()
+    current_thread->status = LWP_TERM;
 
-    // yields control to next thread using lwp_yield()
+    // yields control to next thread using lwp_yield() 
+    lwp_yield();
 
-    // removes stack 
-    if (munmap(stack, size) == -1) {
-        perror("munmap");
-        return EXIT_FAILURE;
-    }
+Terminates the calling thread. Its termination status becomes the low 8 bits of the passed integer. The thread’s resources will be deallocated once it is waited for in lwp_wait(). Yields control to the next thread using lwp_yield().
+
+    A thread’s termination value is the low 8 bits either of the argument to lwp_exit() or of the return value of the thread function. These are combined into a single integer using the macro MKTERMSTAT() which is what is passed back by lwp_wait().
+    MKTERMSTAT(a,b)  // combine status and exit code into an int 
+    LWP_LIVE // status of live thread
+    LWP_TERM //status of terminated thread
+    LWPTERMINATED(s) // true if status represnets tewrminateed thread
+    LWPTERMSTAT(s)  // extracts exit code from status 
 }
 
 
+// Waiting for thread to terminate 
 // Waiting for thread to terminate 
 tid_t lwp_wait(int *status){
     // waiting for thread to terminate
@@ -198,35 +216,81 @@ tid_t lwp_wait(int *status){
     // and then remove the blocking process from our waiting queue and readmit it back into the schedule
     // with sched->admit() command so it can finish its lwp_wait() command
 
+    if(current_thread){
+        thread thread_for_cleanup = current_thread->exited; 
+        // CASE: current thread waited before no terminated threads so we have now come back after thread terminated
 
-    // NOTE: if there are literally no threads left that could block, then we just return
-    // NO_THREAD; we can tell this by using qlen(): check if qlen() > 1? (is this correct?)
+        if(!thread_for_cleanup){ // if exited value does not exist
+            // check if any terminated threads exist
+            if(list_of_terminated_threads){ // if threads exist
+                // let's grab the oldest terminated friend (FIFO)
+                thread_for_cleanup = list_of_terminated_threads;
+                thread_for_cleanup->lib_one = NULL;  // so no more linked list!
 
-    // deallocates resources of terminated LWP
-    // NOTE: be careful don't deallocate stack of main thread
+                thread temp = list_of_terminated_threads->lib_one;
+                list_of_terminated_threads = temp; // moving queue over
+            }
+            else { // no terminated threads exist
+                if(current_thread->qlen() > 1){ // running threads still happening 
+                    current_scheduler->remove(current_thread); // remove off scheduler 
+                    if(list_of_waiting_threads) {
+                        thread temp = list_of_waiting_threads; 
+                        thread next = temp->lib_one;
+                        while(next){
+                            temp = next;
+                            next = next->lib_one;
+                        }
+                        temp->lib_one = current_thread;
+                    } else {
+                        list_of_waiting_threads = current_thread;
+                        return NO_THREAD;   // return no thread since we didn't clean up yet
+                    }
+                } {
+                    // then we do something else?? 
+                    return NO_THREAD;       // because we aren't cleaning up any thread
+                }
+            }
 
-    // if status is non-NULL (status has termination status)? weird phrasing (need to do something with status)
-    // reports termination status if not NULL
+        } else {
+                // if(current_thread->tid != 1){ // not main
+            //     if (munmap(current_thread->stack, current_thread->size) == -1) {
+            //         perror("munmap");
+            //         return EXIT_FAILURE;
+            //     }
+                // }
+            // // deallocates resources of terminated LWP
+            // // NOTE: be careful don't deallocate stack of main thread
+        }
+    }
 
-    // returns either tid of terminated threat or NO_THREAD 
-    // if blocking forever (since no more runnable threads that could terminate)
+    return NO_THREAD;
 }
 
-// Getting tid of called LWP 
+
+// Getting tid of Current LWP (either it is the LWP)
+// returns either tid of thread or NO_THREAD if not called by LWP
 tid_t lwp_gettid(void){
-    // returns either tid of thread or NO_THREAD if not called by LWP
+    if(current_thread) {
+        return thread->tid; 
+    }
+    return NO_THREAD; 
 }
 
-// given a thread ID, return thread 
+// Given a thread ID, return thread or NO_THREAD if ID is invalid
 thread tid2thread(tid_t tid){
-    // given a thread ID, return thread or NO_THREAD if ID is invalid
+    thread temp = list_of__all_threads;
+    while(temp){
+        if(tid == temp->tid) {
+            return temp;
+        } 
+        temp = temp->lib_one;   // if no match skips to next thread
+    } 
 }
 
 // LWP package uses scheduler to choose next process to run
 void lwp_set_scheduler(scheduler sched) {
-    if (!scheduler) {   // if scheduler is NULL, return back to round-robin scheduling
+    if (!sched) {   // if scheduler is NULL, return back to round-robin scheduling
         // set up round robin
-        // struct scheduler roundrobin = {NULL, NULL, rr_admit, rr_remove, rr_next, rr_qlen};
         current_scheduler = &roundrobin;
         roundrobin.init = rr_init();  // defined in lwp.h
         roundrobin.shutdown = rr_shutdown();
@@ -236,15 +300,12 @@ void lwp_set_scheduler(scheduler sched) {
 }
 
 // Helps us get current scheduler 
-// return pointer to current scheduler
+// Return pointer to current scheduler
 scheduler lwp_get_scheduler(void){
-    return scheduler;
+    return current_scheduler;
 }
 
 // current process we are running 
 int main(void) {
-
-
     lwp_start();
-
 }

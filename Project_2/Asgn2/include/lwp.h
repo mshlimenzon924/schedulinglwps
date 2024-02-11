@@ -5,6 +5,7 @@
 #include <sys/resource.h>
 #include <math.h>
 #include <stdio.h>
+#include <pthread.h>
 
 #ifndef TRUE
 #define TRUE 1
@@ -43,6 +44,14 @@ registers {
 typedef unsigned long tid_t;
 #define NO_THREAD 0             /* an always invalid thread id */
 
+int counter; 
+extern scheduler current_scheduler;
+
+thread current_thread;      // current thread we are processing
+thread list_of_all_threads;     // list of ALL threads
+thread list_of_terminated_threads;  // list of all terminated threads
+thread list_of_waiting_threads; // list of all terminated threads
+
 typedef struct threadinfo_st *thread;
 typedef struct threadinfo_st {
   tid_t         tid;            /* lightweight process id  */
@@ -79,6 +88,7 @@ extern tid_t lwp_wait(int *);
 extern void  lwp_set_scheduler(scheduler fun);
 extern scheduler lwp_get_scheduler(void);
 extern thread tid2thread(tid_t tid);
+extern static void lwp_wrap(lwpfun fun, void *arg);
 
 
 /* for lwp_wait */
@@ -89,6 +99,7 @@ extern thread tid2thread(tid_t tid);
 #define LWP_LIVE          0
 #define LWPTERMINATED(s)  ( (((s)>>TERMOFFSET)&LWP_TERM) == LWP_TERM )
 #define LWPTERMSTAT(s)    ( (s) & ((1<<TERMOFFSET)-1) )
+#define PID_START         18490
 
 /* prototypes for asm functions */
 void swap_rfiles(rfile *old, rfile *new);
