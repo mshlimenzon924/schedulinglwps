@@ -1,15 +1,20 @@
-#include "/Asgn2/include/lwp.h"
+#include "Asgn2/include/lwp.h"
+#include "rr.h"
 
 struct scheduler roundrobin = {NULL, NULL, rr_admit, rr_remove, rr_next, rr_qlen};
-list_of_all_threads = NULL;         // list of all threads at the beginning of program (linked list)
-list_of_terminated_threads = NULL;
+thread list_of_all_threads = NULL;         // list of all threads at the beginning of program (linked list)
+thread list_of_terminated_threads = NULL;
+scheduler current_scheduler;
+
+// Define a global variable to track the current thread identifier
+int current_tid = PID_START;
 
 // Creating new lightweight process (thread), adds to Scheduler, But does not run it 
-tid_t lwp_create(lwmpfun function, void *argument) {
+tid_t lwp_create(lwpfun function, void *argument) {
     /// ALLOCATE CONTEXT
     thread new_thread = (thread)malloc(sizeof(context));
     if(!new_thread) {   // malloc issue
-        printf(stderr, "thread malloc issue\n");
+        fprintf(stderr, "thread malloc issue\n");
         return NO_THREAD;
     }
 
@@ -29,7 +34,7 @@ tid_t lwp_create(lwmpfun function, void *argument) {
     } 
     // calculating stack_size
     long stack_size;
-    if (rlim.rlim_cur == RLIM_INFINITY) || (rlim.rlim_cur > 0) {
+    if ((rlim.rlim_cur == RLIM_INFINITY) || (rlim.rlim_cur > 0)) {
         stack_size = DEFAULT_STACK_SIZE;
     } else {
         stack_size = rlim.rlim_cur;
@@ -37,16 +42,18 @@ tid_t lwp_create(lwmpfun function, void *argument) {
     stack_size = ceil((long)stack_size / page_size) * page_size; // rounding up 
 
     // points to bottom aka starting point for stack operations; it grows upward
-    unsigned long *stack = (unsigned long *)mmap(NULL, stack_size, PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANONYMOUS | MAP_STACK, -1, 0);
+    unsigned long *stack = (unsigned long *)mmap(NULL, stack_size, (PROT_READ | PROT_WRITE), (MAP_PRIVATE | MAP_ANONYMOUS | MAP_STACK), -1, 0);
     if (stack == MAP_FAILED) {
         fprintf(stderr, "mmap issue\n");
         return NO_THREAD;
     }
 
-    new_thread->tid = PID_START++;  // tid setup
+    //new_thread->tid = PID_START++;  // tid setup // pid_start isnt modifiable 
+    // Inside your code, assign the thread identifier to new_thread->tid
+    new_thread->tid = current_tid++;
     new_thread->status =  LWP_LIVE;  // thread is live
     new_thread->stacksize = (size_t)stack_size;
-    newthread->state.fxsave = FPU_INIT;
+    new_thread->state.fxsave = FPU_INIT;
 
     // set up thread
     new_thread->state.rdi = (unsigned long)&argument; 
@@ -78,12 +85,12 @@ tid_t lwp_create(lwmpfun function, void *argument) {
     new_thread->sched_two = NULL;
     new_thread->exited = NULL;
 
-    current_scheduler->admit(new_lwp); // scheduler lwp to be run
+    current_scheduler->admit(new_thread); // scheduler lwp to be run
 
     // Add thread to list of threads 
     if(list_of_all_threads){    // if already has at least one thread
         thread temp = new_thread;  
-        new_thread.lib_one = list_of_all_threads;   
+        new_thread->lib_one = list_of_all_threads;   
         list_of_all_threads = temp;  // then just add it to the front
     } else {
         list_of_all_threads = new_thread;
@@ -113,7 +120,7 @@ void lwp_start(void){
 
     // create new thread with threadID and alive status 
     thread new_lwp = (thread)malloc(sizeof(struct threadinfo_st));
-    new_lwp = &new_lwp;
+    //new_lwp = &new_lwp;
     new_lwp->tid = 1;
     new_lwp->status = LWP_LIVE;
 
@@ -144,31 +151,34 @@ void lwp_yield(void){
 
     /* Test Code */
     // get next thread to be scheduled
-    thread next_scheduled = scheduler->next();
+    thread next_scheduled = current_scheduler->next();
 
     // if no next thread end program with call to lwp_exit(int status);
     if(!next_scheduled)
-        lwp_exit(current_lwp->status);
+        lwp_exit(current_thread->status);
 
     // swap out current threads context with next threads context
     // loads in new context, saves old context 
-    swap_rfiles(current_lwp->rfile, next_scheduled->rfile) // takes in 2 arg stores current reg values, loads to register 
+    swap_rfiles(&current_thread->state, &next_scheduled->state); // takes in 2 arg stores current reg values, loads to register 
     
     // mark next_scheduled as the current lwp 
-    current_lwp = next_scheduled;
+    current_thread = next_scheduled;
 }
 
 // Terminates current thread and yields to whichever thread the scheduler choose
  // termination status becomes low 8 bits of passed integer (exitval)
 void lwp_exit(int exitval) {
+    // set up termination status
+    current_thread->status = MKTERMSTAT(LWP_TERM, exitval);
+
     // terminates current_thread
     if(current_thread){
         current_scheduler->remove(current_thread);
         thread temp_wait = list_of_waiting_threads;
         if(temp_wait){ //temp_wait exists then let's throw it in oldest wait node
-            temp->exited = current_thread;
-            list_of_waiting_threads = temp->lib_one;    // dequeue oldest waiting node
-            current_scheduler->admit(temp);     // add back to scheduler
+            temp_wait->exited = current_thread;
+            list_of_waiting_threads = temp_wait->lib_one;    // dequeue oldest waiting node
+            current_scheduler->admit(temp_wait);     // add back to scheduler
         }
         else { // if no waiting nodes
             // great let's just add to the list of terminated nodes that need to be cleaned up
@@ -194,14 +204,14 @@ void lwp_exit(int exitval) {
     // yields control to next thread using lwp_yield() 
     lwp_yield();
 
-Terminates the calling thread. Its termination status becomes the low 8 bits of the passed integer. The thread’s resources will be deallocated once it is waited for in lwp_wait(). Yields control to the next thread using lwp_yield().
+// Terminates the calling thread. Its termination status becomes the low 8 bits of the passed integer. The thread’s resources will be deallocated once it is waited for in lwp_wait(). Yields control to the next thread using lwp_yield().
 
-    A thread’s termination value is the low 8 bits either of the argument to lwp_exit() or of the return value of the thread function. These are combined into a single integer using the macro MKTERMSTAT() which is what is passed back by lwp_wait().
-    MKTERMSTAT(a,b)  // combine status and exit code into an int 
-    LWP_LIVE // status of live thread
-    LWP_TERM //status of terminated thread
-    LWPTERMINATED(s) // true if status represnets tewrminateed thread
-    LWPTERMSTAT(s)  // extracts exit code from status 
+//     A thread’s termination value is the low 8 bits either of the argument to lwp_exit() or of the return value of the thread function. These are combined into a single integer using the macro MKTERMSTAT() which is what is passed back by lwp_wait().
+//     MKTERMSTAT(a,b)  // combine status and exit code into an int 
+//     LWP_LIVE // status of live thread
+//     LWP_TERM //status of terminated thread
+//     LWPTERMINATED(s) // true if status represnets tewrminateed thread
+//     LWPTERMSTAT(s)  // extracts exit code from status 
 }
 
 
@@ -231,7 +241,7 @@ tid_t lwp_wait(int *status){
                 list_of_terminated_threads = temp; // moving queue over
             }
             else { // no terminated threads exist
-                if(current_thread->qlen() > 1){ // running threads still happening 
+                if(current_scheduler->qlen() > 1){ // running threads still happening 
                     current_scheduler->remove(current_thread); // remove off scheduler 
                     if(list_of_waiting_threads) {
                         thread temp = list_of_waiting_threads; 
@@ -271,14 +281,14 @@ tid_t lwp_wait(int *status){
 // returns either tid of thread or NO_THREAD if not called by LWP
 tid_t lwp_gettid(void){
     if(current_thread) {
-        return thread->tid; 
+        return current_thread->tid; 
     }
     return NO_THREAD; 
 }
 
 // Given a thread ID, return thread or NO_THREAD if ID is invalid
 thread tid2thread(tid_t tid){
-    thread temp = list_of__all_threads;
+    thread temp = list_of_all_threads;
     while(temp){
         if(tid == temp->tid) {
             return temp;
@@ -292,11 +302,19 @@ void lwp_set_scheduler(scheduler sched) {
     if (!sched) {   // if scheduler is NULL, return back to round-robin scheduling
         // set up round robin
         current_scheduler = &roundrobin;
-        roundrobin.init = rr_init();  // defined in lwp.h
-        roundrobin.shutdown = rr_shutdown();
+        roundrobin.init = rr_init;  // defined in lwp.h
+        roundrobin.shutdown = rr_shutdown;
     } else {    // if not null, then use new scheduler 
         current_scheduler = sched;
     }
+}
+
+void rr_init(){
+
+}
+
+void rr_shutdown(){
+    
 }
 
 // Helps us get current scheduler 
@@ -308,4 +326,6 @@ scheduler lwp_get_scheduler(void){
 // current process we are running 
 int main(void) {
     lwp_start();
+
+    return 0;
 }
