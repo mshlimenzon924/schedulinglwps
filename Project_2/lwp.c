@@ -204,7 +204,7 @@ void lwp_exit(int exitval) {
     // yields control to next thread using lwp_yield() 
     lwp_yield();
 
-// Terminates the calling thread. Its termination status becomes the low 8 bits of the passed integer. The thread’s resources will be deallocated once it is waited for in lwp_wait(). Yields control to the next thread using lwp_yield().
+    // Terminates the calling thread. Its termination status becomes the low 8 bits of the passed integer. The thread’s resources will be deallocated once it is waited for in lwp_wait(). Yields control to the next thread using lwp_yield().
 
 //     A thread’s termination value is the low 8 bits either of the argument to lwp_exit() or of the return value of the thread function. These are combined into a single integer using the macro MKTERMSTAT() which is what is passed back by lwp_wait().
 //     MKTERMSTAT(a,b)  // combine status and exit code into an int 
@@ -262,14 +262,15 @@ tid_t lwp_wait(int *status){
             }
 
         } else {
-                // if(current_thread->tid != 1){ // not main
-            //     if (munmap(current_thread->stack, current_thread->size) == -1) {
-            //         perror("munmap");
-            //         return EXIT_FAILURE;
-            //     }
-                // }
-            // // deallocates resources of terminated LWP
-            // // NOTE: be careful don't deallocate stack of main thread
+            // deallocates resources of terminated LWP
+            // NOTE: be careful don't deallocate stack of main thread
+            if(thread_for_cleanup->tid != 1){ // not main
+                if (munmap(thread_for_cleanup->stack, thread_for_cleanup->stacksize) == -1) {
+                    perror("munmap");
+                    return EXIT_FAILURE;
+                }
+            }
+            free(thread_for_cleanup);
         }
     }
 
@@ -314,7 +315,10 @@ void rr_init(){
 }
 
 void rr_shutdown(){
-    
+    while(current_scheduler->qlen() >= 1){
+        current_scheduler->remove(current_thread);
+    }
+    free(queue);
 }
 
 // Helps us get current scheduler 
