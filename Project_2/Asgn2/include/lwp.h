@@ -1,6 +1,11 @@
 #ifndef LWPH
 #define LWPH
 #include <sys/types.h>
+#include <sys/time.h>
+#include <sys/resource.h>
+#include <math.h>
+#include <stdio.h>
+#include <pthread.h>
 
 #ifndef TRUE
 #define TRUE 1
@@ -11,7 +16,7 @@
 
 
 #if defined(__x86_64)
-#include <fp.h>
+#include "fp.h"
 typedef struct __attribute__ ((aligned(16))) __attribute__ ((packed))
 registers {
   unsigned long rax;            /* the sixteen architecturally-visible regs. */
@@ -38,6 +43,14 @@ registers {
 
 typedef unsigned long tid_t;
 #define NO_THREAD 0             /* an always invalid thread id */
+
+int counter; 
+extern scheduler current_scheduler;
+
+thread current_thread;      // current thread we are processing
+thread list_of_all_threads;     // list of ALL threads
+thread list_of_terminated_threads;  // list of all terminated threads
+thread list_of_waiting_threads; // list of all terminated threads
 
 typedef struct threadinfo_st *thread;
 typedef struct threadinfo_st {
@@ -75,14 +88,18 @@ extern tid_t lwp_wait(int *);
 extern void  lwp_set_scheduler(scheduler fun);
 extern scheduler lwp_get_scheduler(void);
 extern thread tid2thread(tid_t tid);
+extern static void lwp_wrap(lwpfun fun, void *arg);
+
 
 /* for lwp_wait */
 #define TERMOFFSET        8
+#define DEFAULT_STACK_SIZE (8 * 1024 * 1024)
 #define MKTERMSTAT(a,b)   ( (a)<<TERMOFFSET | ((b) & ((1<<TERMOFFSET)-1)) )
 #define LWP_TERM          1
 #define LWP_LIVE          0
 #define LWPTERMINATED(s)  ( (((s)>>TERMOFFSET)&LWP_TERM) == LWP_TERM )
 #define LWPTERMSTAT(s)    ( (s) & ((1<<TERMOFFSET)-1) )
+#define PID_START         18490
 
 /* prototypes for asm functions */
 void swap_rfiles(rfile *old, rfile *new);
