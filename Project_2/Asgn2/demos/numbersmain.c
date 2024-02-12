@@ -83,7 +83,7 @@ static void indentnum(void *num) {
   int howfar;
 
   howfar=(long)num;              /* interpret num as an integer */
-  for(i=0;i<howfar;i++){
+  for(int i=0;i<howfar;i++){
     printf("%*d\n",howfar*5,howfar);
     lwp_yield();                /* let another have a turn */
   }

@@ -46,8 +46,13 @@ randomsnakes.o: lwp.h snakes.h
 numbermain.o: lwp.h
 
 libLWP.a: lwp.c rr.c util.c
+<<<<<<< Updated upstream:Project_2/Given/Makefile
 	gcc -c rr.c util.c lwp.c magic64.S 
 	ar r libLWP.a util.o lwp.o rr.o magic64.o
+=======
+	gcc -c rr.c util.c lwp.c Asgn2/src/magic64.S
+	ar r libLWP.a util.o lwp.o rr.o magic64.o 
+>>>>>>> Stashed changes:Project_2/Makefile
 	rm lwp.o
 
 submission: lwp.c rr.c util.c Makefile README

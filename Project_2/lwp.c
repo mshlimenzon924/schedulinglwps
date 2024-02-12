@@ -1,8 +1,18 @@
 #include "/Asgn2/include/lwp.h"
 
+//Running command: gcc -g lwp.c rr.c Asgn2/include/lwp.h rr.h -lm Asgn2/src/magic64.S
+
 struct scheduler roundrobin = {NULL, NULL, rr_admit, rr_remove, rr_next, rr_qlen};
+<<<<<<< Updated upstream
 list_of_all_threads = NULL;         // list of all threads at the beginning of program (linked list)
 list_of_terminated_threads = NULL;
+=======
+thread list_of_all_threads = NULL;  // list of all threads at the beginning of program (linked list)
+thread list_of_terminated_threads = NULL;
+scheduler current_scheduler = &roundrobin; // set up round robin
+// roundrobin.init = rr_init;  // defined in lwp.h
+// roundrobin.shutdown = rr_shutdown;
+>>>>>>> Stashed changes
 
 // Creating new lightweight process (thread), adds to Scheduler, But does not run it 
 tid_t lwp_create(lwmpfun function, void *argument) {
@@ -35,20 +45,33 @@ tid_t lwp_create(lwmpfun function, void *argument) {
         stack_size = rlim.rlim_cur;
     }
     stack_size = ceil((long)stack_size / page_size) * page_size; // rounding up 
+    printf("%d\n", stack_size);
 
+<<<<<<< Updated upstream
     // points to bottom aka starting point for stack operations; it grows upward
     unsigned long *stack = (unsigned long *)mmap(NULL, stack_size, PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANONYMOUS | MAP_STACK, -1, 0);
+=======
+    // stack points to top
+    unsigned long *stack = (unsigned long *)mmap(NULL, stack_size, (PROT_READ | PROT_WRITE), (MAP_PRIVATE | MAP_ANONYMOUS | MAP_STACK), -1, 0);
+    stack += stack_size / sizeof(unsigned long);
+
+>>>>>>> Stashed changes
     if (stack == MAP_FAILED) {
         fprintf(stderr, "mmap issue\n");
         return NO_THREAD;
     }
 
+<<<<<<< Updated upstream
     new_thread->tid = PID_START++;  // tid setup
+=======
+    new_thread->tid = ++current_tid;
+>>>>>>> Stashed changes
     new_thread->status =  LWP_LIVE;  // thread is live
     new_thread->stacksize = (size_t)stack_size;
     newthread->state.fxsave = FPU_INIT;
 
     // set up thread
+<<<<<<< Updated upstream
     new_thread->state.rdi = (unsigned long)&argument; 
     new_thread->state.rbp = (unsigned long)&stack;  // bottom of stack 
     
@@ -69,6 +92,20 @@ tid_t lwp_create(lwmpfun function, void *argument) {
     // should i push registers?
 
     new_thread->state.rsp = (unsigned long)*(stack - 2); //pointing to top of stack
+=======
+    new_thread->state.rdi = (unsigned long)function;
+    new_thread->state.rsi = (unsigned long)argument;
+
+    // did -1 becasue unsigned longs are multiples of 16
+    stack--;  // 8 bits
+    stack--;  // 8 bits
+    *stack = (unsigned long)lwp_wrap;         // return address where we want to return to
+    stack--;
+
+
+    new_thread->state.rsp = (unsigned long)stack;  //pointing to top of stack
+    new_thread->state.rbp = (unsigned long)stack;  // bottom of stack  (doesn't really matter?)
+>>>>>>> Stashed changes
     new_thread->stack = (unsigned long *)stack;   // is this correct?
 
     // intialize threads to NULL 
@@ -113,8 +150,12 @@ void lwp_start(void){
 
     // create new thread with threadID and alive status 
     thread new_lwp = (thread)malloc(sizeof(struct threadinfo_st));
+<<<<<<< Updated upstream
     new_lwp = &new_lwp;
     new_lwp->tid = 1;
+=======
+    new_lwp->tid = PID_START;
+>>>>>>> Stashed changes
     new_lwp->status = LWP_LIVE;
 
     // schedule it 
@@ -130,11 +171,17 @@ void lwp_yield(void){
     // Here is all the stack moving stuff happening
     // Saving current thread's context, restoring next thread's context
 
+<<<<<<< Updated upstream
     // If no next thread, end entire program = call exit with termination status of calling thread
     // scheduler determines what comes next once scheduler is written yield is just call to scheduler
     // swap out contexts
     // determine thread to yield too scheduler->next()
     // lwp_exit() terminates the calling thread and switches to another, if any.
+=======
+    printf("QUEUE BEGINS\n");
+    print_queue();
+    thread next_scheduled = current_scheduler->next(); // get next thread to be scheduled
+>>>>>>> Stashed changes
 
     // thread new_lwp = (thread)malloc(sizeof(struct threadinfo_st));
     // new_lwp = &new_lwp;
@@ -142,6 +189,7 @@ void lwp_yield(void){
     // new_lwp->status = LWP_LIVE;
     // current_lwp 
 
+<<<<<<< Updated upstream
     /* Test Code */
     // get next thread to be scheduled
     thread next_scheduled = scheduler->next();
@@ -153,6 +201,10 @@ void lwp_yield(void){
     // swap out current threads context with next threads context
     // loads in new context, saves old context 
     swap_rfiles(current_lwp->rfile, next_scheduled->rfile) // takes in 2 arg stores current reg values, loads to register 
+=======
+    // round 1 current thread = main, next_scheduled = main 
+    swap_rfiles(&current_thread->state, &next_scheduled->state); // swap out current with next thread's context
+>>>>>>> Stashed changes
     
     // mark next_scheduled as the current lwp 
     current_lwp = next_scheduled;
@@ -188,6 +240,7 @@ void lwp_exit(int exitval) {
         }
     }
 
+<<<<<<< Updated upstream
     // don't deallocate or anything - the next thread will deallocate it for us in lwp_wait()
     current_thread->status = LWP_TERM;
 
@@ -202,6 +255,9 @@ Terminates the calling thread. Its termination status becomes the low 8 bits of 
     LWP_TERM //status of terminated thread
     LWPTERMINATED(s) // true if status represnets tewrminateed thread
     LWPTERMSTAT(s)  // extracts exit code from status 
+=======
+    lwp_yield(); // yield control to next thread
+>>>>>>> Stashed changes
 }
 
 
@@ -233,7 +289,12 @@ tid_t lwp_wait(int *status){
             else { // no terminated threads exist
                 if(current_thread->qlen() > 1){ // running threads still happening 
                     current_scheduler->remove(current_thread); // remove off scheduler 
+<<<<<<< Updated upstream
                     if(list_of_waiting_threads) {
+=======
+
+                    if(list_of_waiting_threads) { // COME BACKKKK!!
+>>>>>>> Stashed changes
                         thread temp = list_of_waiting_threads; 
                         thread next = temp->lib_one;
                         while(next){
@@ -241,13 +302,23 @@ tid_t lwp_wait(int *status){
                             next = next->lib_one;
                         }
                         temp->lib_one = current_thread;
+                        lwp_yield();
                     } else {
                         list_of_waiting_threads = current_thread;
                         return NO_THREAD;   // return no thread since we didn't clean up yet
                     }
+<<<<<<< Updated upstream
                 } {
                     // then we do something else?? 
                     return NO_THREAD;       // because we aren't cleaning up any thread
+=======
+                } 
+                else { // if we are the last thread
+
+                    // clean up after ourselves if we last ONEEEEE!!! MUST DOOO!!
+
+                    return NO_THREAD; // NO_THREAD because we aren't cleaning up any thread
+>>>>>>> Stashed changes
                 }
             }
 
@@ -305,7 +376,47 @@ scheduler lwp_get_scheduler(void){
     return current_scheduler;
 }
 
+<<<<<<< Updated upstream
 // current process we are running 
 int main(void) {
     lwp_start();
 }
+=======
+
+// void printing_i(void *num) {
+//     int value_num = (long)num;
+//     printf("%*d\n", value_num);
+// }
+
+// /* 
+// current process we are running 
+// */
+// int main(void) {
+//     lwp_set_scheduler(current_scheduler);
+
+//     /* spawn a number of individual LWPs */
+//     long i = 1;
+//     lwp_create((lwpfun)printing_i,(void*)i);
+//     // for(i=1;i<=5;i++) {
+//     //     lwp_create((lwpfun)printing_i,(void*)i);
+//     // }
+
+//     printf("Finished creating threads.\n");
+
+//     lwp_start();
+
+
+    // /* wait for the other LWPs */
+    // for(i=1;i<=5;i++) {
+    //     int status,num;
+    //     tid_t t;
+    //     t = lwp_wait(&status);
+    //     num = LWPTERMSTAT(status);
+    //     printf("Thread %ld exited with status %d\n",t,num);
+    // }
+
+    // printf("Back from LWPS.\n");
+    // lwp_exit(0);
+//     return 0;
+// }
+>>>>>>> Stashed changes
