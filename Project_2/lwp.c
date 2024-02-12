@@ -309,9 +309,9 @@ scheduler lwp_get_scheduler(void){
 /* 
 current process we are running 
 */
-int main(void) {
-    lwp_set_scheduler(current_scheduler);
-    lwp_start();
+// int main(void) {
+//     lwp_set_scheduler(current_scheduler);
+//     lwp_start();
 
-    return 0;
-}
+//     return 0;
+// }
