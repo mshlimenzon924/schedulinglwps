@@ -30,6 +30,7 @@ thread rr_next();
 int rr_qlen(void);
 void rr_enqueue(thread new);
 struct Node* rr_dequeue();
+void print_queue();
 
 struct Queue *queue;
 extern struct scheduler roundrobin;

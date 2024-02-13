@@ -55,7 +55,10 @@ void rr_remove(thread victim) {
 
 // moves queue over
 thread rr_next() {
+    // issue with dequeue and enqueue 
     if(queue->head){
+        Node *old = rr_dequeue();
+        rr_enqueue(old->current_thread);
         return queue->head->current_thread;
     }
     else{
