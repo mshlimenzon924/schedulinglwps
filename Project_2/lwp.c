@@ -147,7 +147,7 @@ void lwp_yield(void){
     thread next_scheduled = current_scheduler->next(); // get next thread to be scheduled
 
     if(!next_scheduled) // if no next thread, end program with call to lwp_exit(int status);
-        lwp_exit(current_thread->status);
+        exit(current_thread->status);
 
     thread we_are_checking = current_thread;
     current_thread = next_scheduled; // mark next_scheduled as the current lwp
