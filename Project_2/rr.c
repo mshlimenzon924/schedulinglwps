@@ -77,7 +77,7 @@ int rr_qlen(void) {
     return counter;
 }
 
-struct scheduler roundrobin = {NULL, NULL, rr_admit, rr_remove, rr_next, rr_qlen};
+//struct scheduler roundrobin = {NULL, NULL, rr_admit, rr_remove, rr_next, rr_qlen};
 // scheduler round_r = &roundrobin;
 
 void print_queue(){

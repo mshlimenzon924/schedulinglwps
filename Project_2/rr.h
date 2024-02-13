@@ -22,8 +22,8 @@ typedef struct Queue {
 } Queue;
 
 
-//void rr_init();
-//void rr_shutdown();
+void rr_init();
+void rr_shutdown();
 void rr_admit(thread new);
 void rr_remove(thread victim);
 thread rr_next();
