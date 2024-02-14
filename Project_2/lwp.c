@@ -19,9 +19,9 @@ then lwp_exit with return value
 */
 static void lwp_wrap(lwpfun fun, void *arg){
     int rval;
-    //printf("current_func %d\n", current_thread->tid);
+    printf("current_func %d\n", current_thread->tid);
     rval = fun(arg);
-    //printf("rval %d\n", rval);
+    printf("rval %d\n", rval);
     lwp_exit(rval);
 }
 
@@ -135,8 +135,6 @@ void lwp_start(void){
 
     current_scheduler->admit(new_lwp); // schedule thread
 
-    //printf("start\n");
-    //print_queue();
     lwp_yield();
 }
 
@@ -166,6 +164,7 @@ termination status becomes low 8 bits of passed integer (exitval)
 */
 void lwp_exit(int exitval) {
     current_thread->status = MKTERMSTAT(LWP_TERM, exitval); // set up termination status
+    printf("EXIT %d STATUS %d\n", exitval, current_thread->status);
 
     current_thread->lib_one = NULL;
     if(list_of_terminated_threads){  // add to the list of terminated nodes that need to be cleaned up
@@ -247,6 +246,7 @@ tid_t lwp_wait(int *status){
             return EXIT_FAILURE;
         }
         status_val = thread_for_cleanup->status;
+        printf("STATUS %d\n", status_val);
         thread_tid = thread_for_cleanup->tid;
 
         free(thread_for_cleanup);   // got rid of thread
