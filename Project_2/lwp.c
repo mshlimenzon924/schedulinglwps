@@ -19,7 +19,9 @@ then lwp_exit with return value
 */
 static void lwp_wrap(lwpfun fun, void *arg){
     int rval;
+    //printf("current_func %d\n", current_thread->tid);
     rval = fun(arg);
+    //printf("rval %d\n", rval);
     lwp_exit(rval);
 }
 
@@ -69,7 +71,7 @@ tid_t lwp_create(lwpfun function, void *argument) {
     }
 
     new_thread->tid = ++current_tid;
-    new_thread->status =  LWP_LIVE;  // thread is live
+    new_thread->status =  MKTERMSTAT(LWP_LIVE, 0);  // thread is live
     new_thread->stacksize = (size_t)stack_size;
     new_thread->state.fxsave = FPU_INIT;
 
@@ -104,7 +106,7 @@ tid_t lwp_create(lwpfun function, void *argument) {
     } else {
         list_of_all_threads = new_thread;
     }
-
+    
     return new_thread->tid;
 }
 
@@ -133,6 +135,8 @@ void lwp_start(void){
 
     current_scheduler->admit(new_lwp); // schedule thread
 
+    //printf("start\n");
+    //print_queue();
     lwp_yield();
 }
 
@@ -142,19 +146,18 @@ Saving current thread's context, restoring next thread's context, swap out conte
 lwp_exit() terminates the calling thread and switches to another, if any.
 */
 void lwp_yield(void){
+    // issue with our next we are skipping our head
 
-    //print_queue();
     thread next_scheduled = current_scheduler->next(); // get next thread to be scheduled
 
     if(!next_scheduled) // if no next thread, end program with call to lwp_exit(int status);
-        exit(current_thread->status);
+        exit(LWPTERMSTAT(current_thread->status));
 
     thread we_are_checking = current_thread;
     current_thread = next_scheduled; // mark next_scheduled as the current lwp
 
     // round 1 current thread = main, next_scheduled = main 
     swap_rfiles(&we_are_checking->state, &next_scheduled->state); // swap out current with next thread's context
-
 }
 
 /* 
@@ -162,42 +165,29 @@ Terminates current thread and yields to whichever thread the scheduler choose
 termination status becomes low 8 bits of passed integer (exitval) 
 */
 void lwp_exit(int exitval) {
-    
     current_thread->status = MKTERMSTAT(LWP_TERM, exitval); // set up termination status
 
+    current_thread->lib_one = NULL;
+    if(list_of_terminated_threads){  // add to the list of terminated nodes that need to be cleaned up
+        thread temp = list_of_terminated_threads; // add terminated thread to the BACK of the linked list 
+        thread next = temp->lib_one;
+
+        while(next) {       // while there exists another thread in linked list
+            temp = next;    // move temp over 
+            next = next->lib_one;
+        }
+        // next is now NULL;
+        temp->lib_one = current_thread; //sent current thread to exited!
+    } else {
+        list_of_terminated_threads = current_thread;
+    }
     // terminates current_thread
-    if(current_thread){ 
-        current_scheduler->remove(current_thread);
-        thread temp_wait = list_of_waiting_threads;
-        if(temp_wait){ // temp_wait exists then let's throw it in oldest wait node
-            temp_wait->exited = current_thread;
-            list_of_waiting_threads = temp_wait->lib_one;    // dequeue oldest waiting node
-            current_scheduler->admit(temp_wait);     // add back to scheduler
-            printf("exited thread%d\n", temp_wait->exited->tid);
-
-        }
-        else { // if no waiting nodes
-            if(list_of_terminated_threads){  // add to the list of terminated nodes that need to be cleaned up
-
-                thread temp = list_of_terminated_threads; // add terminated thread to the BACK of the linked list 
-                thread next = temp->lib_one;
-
-                while(temp) {       // while there exists another thread in linked list
-                    temp = next;    // move temp over 
-                    next = next->lib_one;
-                }
-                // next is now NULL;
-                temp->lib_one = current_thread; //sent current thread to exited!
-                if(current_thread->lib_one) {
-                    printf("TEMP->LIB_ONE%d\n", current_thread->lib_one->tid);
-                }
-                current_thread->lib_one = NULL; // should be back of the list either way
-            } else {
-                printf("CURRENT %d\n", current_thread->tid);
-                list_of_terminated_threads = current_thread;
-                list_of_terminated_threads->lib_one = NULL;
-            }
-        }
+    current_scheduler->remove(current_thread);
+    thread temp_wait = list_of_waiting_threads;
+    if(temp_wait) {
+        list_of_waiting_threads = temp_wait->lib_one; 
+        temp_wait->lib_one = NULL;
+        current_scheduler->admit(temp_wait);  
     }
 
     lwp_yield(); // yield control to next thread
@@ -214,91 +204,64 @@ from waiting queue and re-admit to the scheduler so it can finish lwp_wait()
 */
 
 tid_t lwp_wait(int *status){
-
-    printf("QUEUE\n");
-    print_queue();
-    printf("CURRENT TID %d\n", current_thread->tid);
-    if(current_thread){
-        // CASE: current thread waited before no terminated threads so we have now come back after thread terminated
-
-        if((!current_thread->exited) && (!list_of_terminated_threads) && (current_scheduler->qlen() > 1)) {
-            printf("Case 1\n");
-            // if no associated exited thread and no terminated threads yet and we still have threads running 
-            // then we have to yield
-            current_scheduler->remove(current_thread); // remove off scheduler 
-
-            if(list_of_waiting_threads) { 
-                printf("Inside 1\n");
-                thread temp = list_of_waiting_threads; 
-                thread next = temp->lib_one;
-
-                while(next){    // if next is not NULL loop through 
-                    temp = next;
-                    next = next->lib_one;
-                }
-
-                temp->lib_one = current_thread;
-                lwp_yield();
     
-            } else {
-                printf("Inside 2\n");
-                list_of_waiting_threads = current_thread;
-                list_of_waiting_threads->lib_one = NULL;
-                lwp_yield(); 
+    current_thread->lib_one = NULL; // just checking case
+
+    // CASE: current thread waited before no terminated threads so we have now come back after thread terminated
+    if((!list_of_terminated_threads) && (current_scheduler->qlen() > 1)) {
+    // if no terminated threads yet and we still have threads running 
+    // then we have to yield
+        current_scheduler->remove(current_thread); // remove off scheduler 
+        if(list_of_waiting_threads) { 
+            thread temp = list_of_waiting_threads; 
+            thread next = temp->lib_one;
+
+            while(next){    // if next is not NULL loop through 
+                temp = next;
+                next = next->lib_one;
             }
-        }
 
-        thread thread_for_cleanup = NULL;
-        unsigned int status_val = 0;
-
-        if(current_thread->exited) {
-            printf("Case 2\n");
-            thread_for_cleanup = current_thread->exited;
-            current_thread->exited = NULL;
-            printf("%d\n", thread_for_cleanup->tid);
+            temp->lib_one = current_thread;
+            lwp_yield();
+    
         } else {
-            if(list_of_terminated_threads){
-                printf("Case 3\n");
-                thread_for_cleanup = list_of_terminated_threads; // grab the oldest terminated thread (FIFO)
-                thread temp = list_of_terminated_threads->lib_one;  // get the next thread on the linked list
-                list_of_terminated_threads = temp; // move linked over
-                if(list_of_terminated_threads) {
-                    printf("temp %d\n",list_of_terminated_threads->tid);
-                }
-                thread_for_cleanup->lib_one = NULL;  // so no more linked list!
-            }
-            printf("Case 4\n");
-            
+            list_of_waiting_threads = current_thread;
+            lwp_yield(); 
         }
+    }
 
-        if(thread_for_cleanup) {
-            printf("THREAD FOR CLEAN UP %d\n", thread_for_cleanup->tid );
-            if(thread_for_cleanup->tid != PID_START){ // not main
-                if (munmap((void *)thread_for_cleanup->stack, (size_t)thread_for_cleanup->stacksize) == -1) {
-                    perror("munmap");
-                    return EXIT_FAILURE;
-                }
-            current_thread->exited = NULL;
-            status_val = thread_for_cleanup->status;
-            free(thread_for_cleanup);   // got rid of thread
-            thread_for_cleanup = NULL;
-            }
-        } else {
-            fprintf(stderr, "MAJOR PROBLEM\n");
-        }
+    thread thread_for_cleanup = NULL;
+    unsigned int status_val = 0;
+    tid_t thread_tid = NO_THREAD;
 
-        if(status && thread_for_cleanup){
-            *status = status_val;
-        }
-        else {
-            status = NULL;
-        }
+    if(list_of_terminated_threads){
+        thread_for_cleanup = list_of_terminated_threads; // grab the oldest terminated thread (FIFO)
+        thread temp = list_of_terminated_threads->lib_one;  // get the next thread on the linked list
+        list_of_terminated_threads = temp; // move linked over
+        thread_for_cleanup->lib_one = NULL; // no more linked list
+    }
 
-         return status_val;
-    }   
-    return NO_THREAD;
-       
-}
+    if(thread_for_cleanup) {
+        if (munmap((void *)thread_for_cleanup->stack, (size_t)thread_for_cleanup->stacksize) == -1) {
+            perror("munmap");
+            return EXIT_FAILURE;
+        }
+        status_val = thread_for_cleanup->status;
+        thread_tid = thread_for_cleanup->tid;
+
+        free(thread_for_cleanup);   // got rid of thread
+        thread_for_cleanup = NULL;
+    }
+
+    if(status && status_val){
+        *status = status_val;
+    }
+    else {
+        status = NULL;
+    }
+
+    return thread_tid;
+}  
 
 /* 
 Getting tid of Current LWP (either it is the LWP)

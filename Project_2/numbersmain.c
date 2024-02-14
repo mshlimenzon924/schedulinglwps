@@ -83,11 +83,12 @@ static void indentnum(void *num) {
   int howfar;
 
   howfar=(long)num;              /* interpret num as an integer */
-  for(int i=0;i<howfar;i++){
+  for(;i<howfar;i++){
     printf("%*d\n",howfar*5,howfar);
     lwp_yield();                /* let another have a turn */
   }
-  lwp_exit(i);                  /* bail when done.  This should
+  lwp_exit(i);                 
+   /* bail when done.  This should
                                  * be unnecessary if the stack has
                                  * been properly prepared
                                  */

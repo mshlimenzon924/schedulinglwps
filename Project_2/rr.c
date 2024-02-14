@@ -59,7 +59,7 @@ thread rr_next() {
     if(queue->head){
         Node *old = rr_dequeue();
         rr_enqueue(old->current_thread);
-        return queue->head->current_thread;
+        return old->current_thread;
     }
     else{
         return NULL;
