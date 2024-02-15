@@ -49,14 +49,41 @@ void rr_admit(thread new) {
 
 // removes thread from front of queue
 void rr_remove(thread victim) {
-    Node *victim_node = rr_dequeue();
-    free(victim_node);
+    Node *prev = NULL; 
+    Node *future = NULL; 
+
+    if(queue){
+        future = queue->head;
+    } else {
+        fprintf(stderr, "Dequeuing from empty queue\n");
+    }
+
+    while(future){ 
+        if(future->current_thread->tid == victim->tid) { //if we found it
+            if(prev) { // there is a prev
+                prev->next = future->next; 
+                if(!future->next) {
+                    queue->tail = prev;
+                }
+            } else {
+                queue->head = future->next; 
+            }
+            free(future);
+            //print_queue();
+            break;
+        } 
+        prev = future;
+        future = future->next;
+    }   
 }
 
 // moves queue over
 thread rr_next() {
+    // issue with dequeue and enqueue 
     if(queue->head){
-        return queue->head->current_thread;
+        Node *old = rr_dequeue();
+        rr_enqueue(old->current_thread);
+        return old->current_thread;
     }
     else{
         return NULL;
@@ -74,7 +101,7 @@ int rr_qlen(void) {
     return counter;
 }
 
-struct scheduler roundrobin = {NULL, NULL, rr_admit, rr_remove, rr_next, rr_qlen};
+//struct scheduler roundrobin = {NULL, NULL, rr_admit, rr_remove, rr_next, rr_qlen};
 // scheduler round_r = &roundrobin;
 
 void print_queue(){

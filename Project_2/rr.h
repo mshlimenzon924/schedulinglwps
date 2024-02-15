@@ -22,14 +22,15 @@ typedef struct Queue {
 } Queue;
 
 
-//void rr_init();
-//void rr_shutdown();
+void rr_init();
+void rr_shutdown();
 void rr_admit(thread new);
 void rr_remove(thread victim);
 thread rr_next();
 int rr_qlen(void);
 void rr_enqueue(thread new);
 struct Node* rr_dequeue();
+void print_queue();
 
 struct Queue *queue;
 extern struct scheduler roundrobin;
