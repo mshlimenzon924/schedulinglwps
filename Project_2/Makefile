@@ -16,7 +16,7 @@ NUMOBJS    = numbersmain.o
 
 UTILOBJS = util.o
 
-RROBJS = rr.o
+RROBJS = fcfs.o
 
 MAGICOBJS = magic64.o
 
@@ -51,11 +51,11 @@ randomsnakes.o: lwp.h snakes.h
 
 numbermain.o: lwp.h
 
-libLWP.a: lwp.c rr.c util.c
-	gcc -c rr.c util.c lwp.c Asgn2/src/magic64.S
-	ar r libLWP.a util.o lwp.o rr.o magic64.o 
+libLWP.a: lwp.c fcfs.c thread_list.c util.c
+	gcc -c fcfs.c util.c thread_list.c lwp.c Asgn2/src/magic64.S -std=gnu99
+	ar r libLWP.a util.o lwp.o fcfs.o magic64.o 
 	rm lwp.o
 
-submission: lwp.c rr.c util.c Makefile README
-	tar -cf project2_submission.tar lwp.c rr.c Makefile README
+submission: lwp.c rr.c util.c Makefile README rr.h lwp.h 
+	tar -cf project2_submission.tar lwp.c rr.c Makefile README lwp.h rr.h 
 	gzip project2_submission.tar
