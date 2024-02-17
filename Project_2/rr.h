@@ -34,6 +34,5 @@ void print_queue();
 
 struct Queue *queue;
 extern struct scheduler roundrobin;
-extern scheduler current_scheduler;
 
 # endif
