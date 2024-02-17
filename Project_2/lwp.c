@@ -1,9 +1,14 @@
 #include "Asgn2/include/lwp.h"
 #include "rr.h"
+#include "fcfs.h"
 
 //Running command: gcc -g lwp.c rr.c Asgn2/include/lwp.h rr.h -lm Asgn2/src/magic64.S
 
-struct scheduler roundrobin = {NULL, NULL, rr_admit, rr_remove, rr_next, rr_qlen};
+//struct scheduler roundrobin = {NULL, NULL, rr_admit, rr_remove, rr_next, rr_qlen};
+
+scheduler roundrobin = &(struct scheduler){ fcfs_init, fcfs_shutdown, fcfs_admit, fcfs_remove, fcfs_next, fcfs_qlen };
+
+
 thread list_of_all_threads = NULL;  // list of all threads at the beginning of program (linked list)
 thread list_of_terminated_threads = NULL;
 thread list_of_waiting_threads = NULL;
@@ -303,8 +308,8 @@ LWP package uses scheduler to choose next process to run
 void lwp_set_scheduler(scheduler sched) {
     if (!sched) {   // if scheduler is NULL, return back to round-robin scheduling
         current_scheduler = &roundrobin; // set up round robin
-        roundrobin.init = rr_init;  // defined in lwp.h
-        roundrobin.shutdown = rr_shutdown;
+        //roundrobin.init = rr_init;  // defined in lwp.h
+        //roundrobin.shutdown = rr_shutdown;
     } else {    // if not null, then use new scheduler 
         current_scheduler = sched;
     }

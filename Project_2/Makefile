@@ -16,11 +16,13 @@ NUMOBJS    = numbersmain.o
 
 UTILOBJS = util.o
 
-RROBJS = fcfs.o
+RROBJS = rr.o
+
+FCFSOBJS = fcfs.o thread_list.o
 
 MAGICOBJS = magic64.o
 
-OBJS	= $(SNAKEOBJS) $(HUNGRYOBJS) $(NUMOBJS) $(UTILOBJS) $(RROBJS) $(MAGICOBJS) 
+OBJS	= $(SNAKEOBJS) $(HUNGRYOBJS) $(NUMOBJS) $(UTILOBJS) $(RROBJS) $(MAGICOBJS) $(FCFSOBJS) 
 
 SRCS	= randomsnakes.c numbersmain.c hungrysnakes.c
 
@@ -45,15 +47,15 @@ hungry: hungrysnakes.o libLWP.a libsnakes.a
 nums: numbersmain.o libLWP.a 
 	$(LD) $(LDFLAGS) -o nums numbersmain.o -L. -lLWP -lm -g
 
-hungrysnakes.o: lwp.h snakes.h
+hungrysnakes.o: lwp.h snakes.h thread_list.h fcfs.h
 
-randomsnakes.o: lwp.h snakes.h
+randomsnakes.o: lwp.h snakes.h thread_list.h fcfs.h
 
-numbermain.o: lwp.h
+numbermain.o: lwp.h thread_list.h fcfs.h
 
 libLWP.a: lwp.c fcfs.c thread_list.c util.c
-	gcc -c fcfs.c util.c thread_list.c lwp.c Asgn2/src/magic64.S -std=gnu99
-	ar r libLWP.a util.o lwp.o fcfs.o magic64.o 
+	gcc -c util.c fcfs.c thread_list.c lwp.c Asgn2/src/magic64.S -std=gnu99
+	ar r libLWP.a util.o lwp.o fcfs.o thread_list.o magic64.o 
 	rm lwp.o
 
 submission: lwp.c rr.c util.c Makefile README rr.h lwp.h 

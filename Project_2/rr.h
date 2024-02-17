@@ -33,7 +33,7 @@ struct Node* rr_dequeue();
 void print_queue();
 
 struct Queue *queue;
-extern struct scheduler roundrobin;
+//extern struct scheduler roundrobin;
 extern scheduler current_scheduler;
 
 # endif
