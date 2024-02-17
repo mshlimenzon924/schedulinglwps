@@ -1,10 +1,10 @@
-
-Instructions: add to your .bashrc 
-Anywhere in file
-
-`export LD_LIBRARY_PATH=/home/mshlimen/CSC_453/Project_2/lib64`
-**Sets shared libraries path to use executables**
-
-Type `source ~/.bashrc`
-
-Confirm path `echo $LD_LIBRARY_PATH`
+Names: Mira Shlimenzon and Sarah Hallam 
+Instructions: 
+    1. add to your .bashrc anywhere in file
+    `export LD_LIBRARY_PATH=/home/'yourpathtoproject2'/Project_2/lib64`
+    **Sets shared libraries path to use executables**
+    2. Type `source ~/.bashrc`
+    3. Confirm path `echo $LD_LIBRARY_PATH`
+    4. Call `make`
+Program Status: Our program sees to be working for us. 
+Anything else you want me to consider: Nothing else. We're really proud of our work! 

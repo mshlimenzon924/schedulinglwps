@@ -49,8 +49,32 @@ void rr_admit(thread new) {
 
 // removes thread from front of queue
 void rr_remove(thread victim) {
-    Node *victim_node = rr_dequeue();
-    free(victim_node);
+    Node *prev = NULL; 
+    Node *future = NULL; 
+
+    if(queue){
+        future = queue->head;
+    } else {
+        fprintf(stderr, "Dequeuing from empty queue\n");
+    }
+
+    while(future){ 
+        if(future->current_thread->tid == victim->tid) { //if we found it
+            if(prev) { // there is a prev
+                prev->next = future->next; 
+                if(!future->next) {
+                    queue->tail = prev;
+                }
+            } else {
+                queue->head = future->next; 
+            }
+            free(future);
+            //print_queue();
+            break;
+        } 
+        prev = future;
+        future = future->next;
+    }   
 }
 
 // moves queue over

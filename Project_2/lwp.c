@@ -19,9 +19,7 @@ then lwp_exit with return value
 */
 static void lwp_wrap(lwpfun fun, void *arg){
     int rval;
-    printf("current_func %d\n", current_thread->tid);
     rval = fun(arg);
-    printf("rval %d\n", rval);
     lwp_exit(rval);
 }
 
@@ -58,7 +56,6 @@ tid_t lwp_create(lwpfun function, void *argument) {
         stack_size = rlim.rlim_cur;
     }
     stack_size = ceil((long)stack_size / page_size) * page_size; // rounding up 
-    //printf("%d\n", stack_size);
 
     // stack points to top
     unsigned long *stack = (unsigned long *)mmap(NULL, stack_size, (PROT_READ | PROT_WRITE), (MAP_PRIVATE | MAP_ANONYMOUS | MAP_STACK), -1, 0);
@@ -156,6 +153,7 @@ void lwp_yield(void){
 
     // round 1 current thread = main, next_scheduled = main 
     swap_rfiles(&we_are_checking->state, &next_scheduled->state); // swap out current with next thread's context
+    // when we call swap_rfiles it runs the thread
 }
 
 /* 
@@ -164,7 +162,6 @@ termination status becomes low 8 bits of passed integer (exitval)
 */
 void lwp_exit(int exitval) {
     current_thread->status = MKTERMSTAT(LWP_TERM, exitval); // set up termination status
-    printf("EXIT %d STATUS %d\n", exitval, current_thread->status);
 
     current_thread->lib_one = NULL;
     if(list_of_terminated_threads){  // add to the list of terminated nodes that need to be cleaned up
@@ -246,7 +243,6 @@ tid_t lwp_wait(int *status){
             return EXIT_FAILURE;
         }
         status_val = thread_for_cleanup->status;
-        printf("STATUS %d\n", status_val);
         thread_tid = thread_for_cleanup->tid;
 
         free(thread_for_cleanup);   // got rid of thread
@@ -301,7 +297,6 @@ void lwp_set_scheduler(scheduler sched) {
 }
 
 void rr_init(){
-
 }
 
 void rr_shutdown(){
@@ -318,41 +313,3 @@ Return pointer to current scheduler
 scheduler lwp_get_scheduler(void){
     return current_scheduler;
 }
-
-
-// void printing_i(void *num) {
-//     int value_num = (long)num;
-//     printf("%*d\n", value_num);
-// }
-
-// /* 
-// current process we are running 
-// */
-// int main(void) {
-//     lwp_set_scheduler(current_scheduler);
-
-//     /* spawn a number of individual LWPs */
-//     long i = 1;
-//     lwp_create((lwpfun)printing_i,(void*)i);
-//     // for(i=1;i<=5;i++) {
-//     //     lwp_create((lwpfun)printing_i,(void*)i);
-//     // }
-
-//     printf("Finished creating threads.\n");
-
-//     lwp_start();
-
-
-    // /* wait for the other LWPs */
-    // for(i=1;i<=5;i++) {
-    //     int status,num;
-    //     tid_t t;
-    //     t = lwp_wait(&status);
-    //     num = LWPTERMSTAT(status);
-    //     printf("Thread %ld exited with status %d\n",t,num);
-    // }
-
-    // printf("Back from LWPS.\n");
-    // lwp_exit(0);
-//     return 0;
-// }
